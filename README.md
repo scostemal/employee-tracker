@@ -6,10 +6,10 @@ This is a command line application to manage an employee database. It will utili
 
 ## Table of Contents
 
-    * [User Store](#user-story)
-    * [Acceptance Criteria](#acceptance-criteria)
-    * [Screenshots](#screenshots)
-    * [Screencastify Application Demonstration](#screencastify-demo)
+* [User Store](#user-story)
+* [Acceptance Criteria](#acceptance-criteria)
+* [Screenshots](#screenshots)
+* [Screencastify Application Demonstration](#screencastify-demo)
 
 ## User Story
 
