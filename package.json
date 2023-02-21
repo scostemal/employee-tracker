@@ -1,0 +1,20 @@
+{
+  "name": "employee-tracker",
+  "version": "1.0.0",
+  "description": "Node.js, Inquirer, MySQL application to track staff & department information",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.com/scostemal/employee-tracker"
+  },
+  "author": "Scott Malone",
+  "license": "ISC",
+  "dependencies": {
+    "console.table": "^0.10.0",
+    "inquirer": "^8.2.4",
+    "mysql2": "^3.1.2"
+  }
+}
