@@ -99,7 +99,6 @@ const viewDepartments = async () => {
     }
 };
 
-
 const viewRoles = async () => {
     try {
         const [rows] = await pool.query('SELECT roles.id, roles.title, roles.salary, departments.name AS department_name, departments.id AS departments_id FROM roles JOIN departments ON roles.department_id = departments.id ORDER BY roles.id ASC');
@@ -407,7 +406,6 @@ const addEmployee = async () => {
         init();
     }
 };
-
 
 async function updateEmployee() {
     try {
