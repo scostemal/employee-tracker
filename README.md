@@ -1,8 +1,8 @@
-# Employee Tracker
+# Employee Tracker 🏢
 
 ## Description
 
-This is a command line application to manage an employee database. It will utilize Node.js, Inquirer, and MySQL.
+This is a command line application to manage an employee database. It will utilize Node.js, Inquirer, and MySQL to allow a user to interact with the data.
 
 ## Table of Contents
 
@@ -10,6 +10,8 @@ This is a command line application to manage an employee database. It will utili
 * [Acceptance Criteria](#acceptance-criteria)
 * [Screenshots](#screenshots)
 * [Screencastify Application Demonstration](#screencastify-demo)
+* [Contributing](#contributing)
+* [Questions](#questions)
 
 ## User Story
 
@@ -54,3 +56,5 @@ THEN I am prompted to select an employee to update and their new role and this i
 ## Contributing
 
 ## Questions
+
+For any further questions you can reach the author of this project at https://github.com/scostemal or by email at scott.malone62@gmail.com,
