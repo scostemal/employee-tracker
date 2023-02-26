@@ -2,9 +2,9 @@
   "name": "employee-tracker",
   "version": "1.0.0",
   "description": "Node.js, Inquirer, MySQL application to track staff & department information",
-  "main": "index.js",
+  "main": "mainMenu.js",
   "scripts": {
-    "test": "node index.js"
+    "test": "node mainMenu.js"
   },
   "repository": {
     "type": "git",
