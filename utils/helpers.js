@@ -1,6 +1,9 @@
 const inquirer = require('inquirer');
-const actionMenu = require('./actionMenu');
+const actionsMenu = require('./actionMenu');
 const mainMenu = require('../mainMenu');
+
+actionsMenu();
+mainMenu();
 
 async function userActionCheck() {
     try{
@@ -18,7 +21,7 @@ async function userActionCheck() {
             return true;
         } else {
             console.log('Returning you to the main menu....');
-            await actionMenu();
+            await actionsMenu();
             return 'back';
         }
     } catch (error) {
@@ -28,5 +31,4 @@ async function userActionCheck() {
         await mainMenu();
     }
 }
-
 module.exports = userActionCheck;

@@ -1,5 +1,6 @@
 const inquirer = require('inquirer');
-const actionMenu = require('./utils/actionMenu');
+const actionsMenu = require('./utils/actionMenu');
+actionsMenu();
 
 
 async function mainMenu() {
@@ -16,7 +17,7 @@ async function mainMenu() {
         ]);
         if (menuOptions.menuOptions === 'Continue') {
             console.log('Now displaying database interaction options');
-            await actionMenu();
+            await actionsMenu();
         } else if (menuOptions.menuOptions === 'Exit') {
             console.log('Exiting the application. Goodbye!');
             process.exit();
@@ -29,4 +30,4 @@ async function mainMenu() {
     }
 }
 
-module.exports = mainMenu();
+module.exports = mainMenu;
