@@ -45,9 +45,7 @@ THEN I am prompted to select an employee to update and their new role and this i
 
 ## Screenshots
 
-![]()
-![]()
-![]()
+![Screenshot of data retrieved and displayed with the application](./assets/images/app-screenshot.png)
 
 ## Screencastify Demo
 
