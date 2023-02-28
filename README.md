@@ -49,7 +49,9 @@ THEN I am prompted to select an employee to update and their new role and this i
 
 ## Screencastify Demo
 
-[Screencastify Demo]()
+Click the link to watch a short video demonstrating the application's functionality!
+
+[Screencastify Demo](https://drive.google.com/file/d/15TetN77KFK8dyeacpncNVKpVq5_IO3Kv/view)
 
 ## Contributing
 
