@@ -13,39 +13,39 @@ const db = mysql.createPool({
     queueLimit: 0
 });
 
-
-
-const firstPrompt = [
+const menuPrompt = [
   {
     type: "list",
     name: "start",
     message:
       "What would you like to do?",
-    choices: ["View all departments", "View all roles", "View all employees", "Add a department", "Add a role", "Add an employee", "Delete an employee", "Update employee", "Exit"]
+    choices: ["View budget by department", "View all departments", "View all roles", "View all employees", "Add a department", "Add a role", "Add an employee", "Delete a department", "Delete an employee", "Update employee", "Exit"]
   }
 ]
 
 const start = async () => {
     try {
-        const answer = await inquirer.prompt(firstPrompt);
+        const answer = await inquirer.prompt(menuPrompt);
         if (answer.start === "View all departments") {
-            allDepartments();
+            viewAllDepartments();
           } else if (answer.start === "View all roles") {
-            allRoles();
+            viewAllRoles();
           } else if (answer.start === "View all employees") {
-            allEmployees();
+            viewAllEmployees();
           } else if (answer.start === "Add a department") {
             addDepartment();
           } else if (answer.start === "Add a role") {
             addRole();
           } else if (answer.start === "Add an employee") {
             addEmployee();
-          } else if (answer.start === "Update an employee role") {
+          } else if (answer.start === "Update employee") {
             updateEmployee();
           } else if (answer.start === "Delete an employee") {
             deleteEmployee();
           } else if (answer.start === "Delete a role") {
             deleteRole();
+          } else if (answer.start === "View budget by department"){
+            viewBudgetByDepartment();
           } else if (answer.start === "Delete a department") {
             deleteDepartment();
           } else if  (answer.start === "Exit") {
@@ -60,7 +60,7 @@ const start = async () => {
         }
 }
 
-async function allDepartments() {
+async function viewAllDepartments() {
     try {
         const [ departmentsQuery ] = await db.query('SELECT id, name AS department_name FROM departments');
         console.table(departmentsQuery)
@@ -74,7 +74,7 @@ async function allDepartments() {
     }
 }
 
-async function allRoles() {
+async function viewAllRoles() {
     try {
         const [ rolesQuery ] = await db.query( 'SELECT roles.title, roles.id AS role_id, departments.name as department, roles.salary FROM roles JOIN departments ON roles.department_id = departments.id');
         console.table(rolesQuery)
@@ -88,7 +88,7 @@ async function allRoles() {
     }
 }
 
-async function allEmployees() {
+async function viewAllEmployees() {
     try {
         const [ employeesQuery ] = await db.query('SELECT employees.id AS id, CONCAT(employees.first_name, " ", employees.last_name) AS employee_name, roles.title, departments.name AS department, roles.salary, CONCAT(manager.first_name, " ", manager.last_name) AS manager_name FROM employees INNER JOIN roles ON employees.role_id = roles.id INNER JOIN departments ON roles.department_id = departments.id LEFT JOIN employees manager ON employees.manager_id = manager.id');
         console.table(employeesQuery);
@@ -208,6 +208,19 @@ async function addEmployee() {
     }
 } ;
 
+async function viewBudgetByDepartment() {
+    try {
+        const [rows] = await db.query(`SELECT departments.name, SUM(roles.salary) AS total_budget FROM departments JOIN roles ON departments.id = roles.department_id GROUP BY departments.id ORDER BY total_budget DESC;`);
+        console.table(rows);
+        start();
+    } catch (error) {
+        console.error(`An error occured: ${error}`);
+        console.error(`Error message: ${error.message}`);
+        console.error(`Error stack trace: ${error.stack}`);
+        start();
+    }
+}
+
 async function updateEmployee() {
     try { 
         const [ rolesQuery ] = await db.query('SELECT * FROM roles');
@@ -276,6 +289,507 @@ async function updateEmployee() {
             await start();
     }
 } 
+
+async function deleteEmployee() {
+    try {
+        // This should query the database for employees who are not managers and display their full name in the prompt question
+        const employeesQuery = await db.query('SELECT id, first_name, last_name FROM employees WHERE manager_id IS NOT NULL');
+        const employeeChoices = employeesQuery[0].map((employee) => ({ name: `${employee.first_name} ${employee.last_name}`, value: employee.id }));
+        const response = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'deleteChoice',
+                message: 'Choose which employee you would like to delete:',
+                choices: employeeChoices,
+            },
+            {
+                type: 'confirm',
+                name: 'deleteConfirm',
+                message: 'Are you certain you would like to take this action?',
+                default: true,
+            },
+        ]);
+
+        if (!response.deleteConfirm) {
+            console.log('Cancelling the delete action');
+            await start();
+            return;
+        }
+
+        const deleteEmployeeQuery = await db.query('DELETE FROM employees WHERE id = ?', [response.deleteChoice]);
+        console.log(`Successfully deleted employee with ID ${response.deleteChoice} from the database.`);
+
+        await start();
+    } catch (error) {
+        console.log('An error occurred. Please contact your database administrator if it continues.');
+        console.log('Returning you to the main menu.');
+        console.error(`An error occurred: ${error.message}`);
+        console.error(`Error stack trace: ${error.stack}`);
+        await start();
+    }
+}
+
+async function deleteDepartment() {
+    try {
+      let confirmDelete = false;
+  
+      while (!confirmDelete) {
+        const departmentQuery = await db.query("SELECT id, name FROM departments");
+        const departmentChoices = departmentQuery[0].map(({ id, name }) => ({
+          name: name,
+          value: id,
+        }));
+  
+        const deleteDepartmentChoice = await inquirer.prompt([
+          {
+            type: "list",
+            name: "deleteDepartmentChoice",
+            message: "Choose the department you would like to delete:",
+            choices: departmentChoices,
+          },
+        ]);
+  
+        // Query the database to count if roles are still assigned to the department and error the delete if there are roles assigned
+        const departmentRoleCheck = "SELECT COUNT(*) FROM roles WHERE department_id = ?";
+        const [countResult] = await db.query(departmentRoleCheck, [deleteDepartmentChoice.deleteDepartmentChoice]);
+        const count = countResult[0]["COUNT(*)"];
+  
+        if (count > 0) {
+          console.error(`Cannot delete ${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} because there are ${count} roles still assigned.`);
+          const chooseAnotherDepartment = await inquirer.prompt([
+            {
+              type: "confirm",
+              name: "chooseAnotherDepartment",
+              message: "Would you like to choose another department to delete?",
+              default: false,
+            },
+          ]);
+  
+          if (!chooseAnotherDepartment.chooseAnotherDepartment) {
+            console.log("Returning to main menu");
+            await start();
+            break;
+          }
+        } else {
+          const confirmDeleteDepartmentChoice = await inquirer.prompt([
+            {
+              type: "confirm",
+              name: "confirmDeleteDepartmentChoice",
+              message: `Are you certain you would like to delete ${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} from the database?`,
+              default: false,
+            },
+          ]);
+  
+          // Query the database and delete the department
+          if (confirmDeleteDepartmentChoice.confirmDeleteDepartmentChoice) {
+            const deleteDepartmentQuery = "DELETE FROM departments WHERE id = ?";
+            await db.query(deleteDepartmentQuery, [deleteDepartmentChoice.deleteDepartmentChoice]);
+            console.log(`${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} has been deleted from the database.`);
+            confirmDelete = true;
+            await start();
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async function deleteDepartment() {
+    try {
+      const departmentQuery = await db.query('SELECT id, name FROM departments');
+      const departmentChoices = departmentQuery[0].map(({ id, name }) => ({ name: name, value: id }));
+      
+      let deleteDepartmentChoice;
+      let confirmDelete;
+      while (!confirmDelete) {
+        deleteDepartmentChoice = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'deleteDepartmentChoice',
+            message: 'Choose the department you would like to delete:',
+            choices: departmentChoices
+          }
+        ]);
+  
+        // Query the database to count if roles are still assigned to the department and error the delete if there are roles assigned
+        const departmentRoleCheck = 'SELECT COUNT(*) FROM roles WHERE department_id = ?';
+        const [countResult] = await db.query(departmentRoleCheck, [deleteDepartmentChoice.deleteDepartmentChoice]);
+        const count = countResult[0]['COUNT(*)'];
+        
+        if (count > 0) {
+          console.error(`Cannot delete ${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} because there are ${count} roles still assigned.`);
+          const chooseAnotherDepartment = await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'chooseAnotherDepartment',
+              message: 'Would you like to choose another department to delete?',
+              default: false,
+            },
+          ]);
+          if (!chooseAnotherDepartment.chooseAnotherDepartment) {
+            console.log('Returning to main menu');
+            await start();
+            return;
+          }
+        } else {
+          const confirmDeleteDepartmentChoice = await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'confirmDeleteDepartmentChoice',
+              message: `Are you certain you would like to delete ${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} from the database?`,
+              default: false,
+            },
+          ]);
+          
+          // Query the database and delete the department 
+          if (confirmDeleteDepartmentChoice.confirmDeleteDepartmentChoice) {
+            const deleteDepartmentQuery = 'DELETE FROM departments WHERE id = ?';
+            await db.query(deleteDepartmentQuery, [deleteDepartmentChoice.deleteDepartmentChoice]);
+            console.log(`${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} has been deleted from the database.`);
+            confirmDelete = true;
+            await start();
+          } else {
+            const chooseAnotherDepartment = await inquirer.prompt([
+              {
+                type: 'confirm',
+                name: 'chooseAnotherDepartment',
+                message: 'Would you like to choose another department to delete?',
+                default: false,
+              },
+            ]);
+            if (!chooseAnotherDepartment.chooseAnotherDepartment) {
+              console.log('Returning to main menu');
+              await start();
+              return;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.log('An error occurred. Please contact your database administrator if it continues.');
+      console.log('Returning you to the main menu.');
+      console.error(`An error occurred: ${error.message}`);
+      console.error(`Error stack trace: ${error.stack}`);
+      await start();
+    }
+  }
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async function deleteDepartment() {
+    try {
+        const departmentQuery = await db.query('SELECT id, name FROM departments');
+        const departmentChoices = departmentQuery[0].map(({ id, name }) => ({ name: name, value: id }));
+        const deleteDepartmentChoice = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'deleteDepartmentChoice',
+                message: 'Choose the department you would like to delete:',
+                choices: departmentChoices
+            }
+        ]);
+        // Query the database to count if roles are still assigned to the department and error the delete if there are roles assigned
+        const departmentRoleCheck = 'SELECT COUNT(*) FROM roles WHERE department_id = ?';
+        const [countResult] = await db.query(departmentRoleCheck, [deleteDepartmentChoice.deleteDepartmentChoice]);
+        const count = countResult[0]['COUNT(*)'];
+        if (count > 0) {
+            console.error(`Cannot delete ${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} because there are ${count} roles still assigned.`);
+            const chooseAnotherDepartment = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'chooseAnotherDepartment',
+                    message: 'Would you like to choose another department to delete?',
+                    default: false,
+                },
+            ]);
+            if (chooseAnotherDepartment.chooseAnotherDepartment) {
+                await deleteDepartment();
+            } else {
+                console.log('Returning to main menu');
+                await start();
+            }
+        } else {
+            const confirmDeleteDepartmentChoice = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'confirmDeleteDepartmentChoice',
+                    message: `Are you certain you would like to delete ${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} from the database?`,
+                    default: false,
+                },
+            ]);
+            // Query the database and delete the department 
+            if (confirmDeleteDepartmentChoice.confirmDeleteDepartmentChoice) {
+                const deleteDepartmentQuery = 'DELETE FROM departments WHERE id = ?';
+                await db.query(deleteDepartmentQuery, [deleteDepartmentChoice.deleteDepartmentChoice]);
+                console.log(`${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} has been deleted from the database.`);
+                confirmDelete = true;
+                await start();
+            }
+        }
+    } catch (error) {
+        console.log('An error occurred. Please contact your database administrator if it continues.');
+        console.log('Returning you to the main menu.');
+        console.error(`An error occurred: ${error.message}`);
+        console.error(`Error stack trace: ${error.stack}`);
+        await start();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async function deleteDepartment() {
+    try {
+        const departmentQuery = await db.query('SELECT id, name FROM departments');
+        const departmentChoices = departmentQuery[0].map(({ id, name }) => ({ name: name, value: id }));
+        const deleteDepartmentChoice = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'deleteDepartmentChoice',
+                message: 'Choose the department you would like to delete:',
+                choices: departmentChoices
+            }
+        ]);
+        // Query the database to count if roles are still assigned to the department and error the delete if there are roles assigned
+        const departmentRoleCheck = 'SELECT COUNT(*) FROM roles WHERE department_id = ?';
+        const [countResult] = await db.query(departmentRoleCheck, [deleteDepartmentChoice.deleteDepartmentChoice]);
+        const count = countResult[0]['COUNT(*)'];
+        if (count > 0) {
+            console.error(`Cannot delete ${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} because there are ${count} roles still assigned.`);
+            const chooseAnotherDepartment = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'chooseAnotherDepartment',
+                    message: 'Would you like to choose another department to delete?',
+                    default: false,
+                },
+            ]);
+            if (!chooseAnotherDepartment.chooseAnotherDepartment) {
+                console.log('Returning to main menu');
+                await start();
+            }
+        } else {
+            const confirmDeleteDepartmentChoice = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'confirmDeleteDepartmentChoice',
+                    message: `Are you certain you would like to delete ${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} from the database?`,
+                    default: false,
+                },
+            ]);
+            // Query the database and delete the department 
+            if (confirmDeleteDepartmentChoice.confirmDeleteDepartmentChoice) {
+                const deleteDepartmentQuery = 'DELETE FROM departments WHERE id = ?';
+                await db.query(deleteDepartmentQuery, [deleteDepartmentChoice.deleteDepartmentChoice]);
+                console.log(`${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} has been deleted from the database.`);
+                confirmDelete = true;
+            }
+            await start();
+        }
+    } catch (error) {
+        console.error('An error occurred. Please contact your database administrator if it continues.');
+        console.error(`An error occurred: ${error.message}`);
+        console.error(`Error stack trace: ${error.stack}`);
+        await start();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// async function deleteDepartment() {
+//     try {
+//         const departmentQuery = await db.query('SELECT id, name FROM departments');
+//         const departmentChoices = departmentQuery[0].map(({ id, name }) => ({ name: name, value: id }));
+//         const deleteDepartmentChoice = await inquirer.prompt([
+//             {
+//                 type: 'list',
+//                 name: 'deleteDepartmentChoice',
+//                 message: 'Choose the department you would like to delete:',
+//                 choices: departmentChoices
+//             }
+//         ]);
+//         // Query the database to count if roles are still assigned to the department and error the delete if there are roles assigned
+//         const departmentRoleCheck = 'SELECT COUNT(*) FROM roles WHERE department_id = ?';
+//         const [countResult] = await db.query(departmentRoleCheck, [deleteDepartmentChoice.deleteDepartmentChoice]);
+//         const count = countResult[0]['COUNT(*)'];
+//         if (count > 0) {
+//             console.error(`Cannot delete ${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} because there are ${count} roles still assigned.`);
+//             const chooseAnotherDepartment = await inquirer.prompt([
+//                 {
+//                     type: 'confirm',
+//                     name: 'chooseAnotherDepartment',
+//                     message: 'Would you like to choose another department to delete?',
+//                     default: false,
+//                 },
+//             ]);
+//                 if (!chooseAnotherDepartment.chooseAnotherDepartment) {
+//                     console.log('Returning to main menu');
+//                     await start();
+//                 }
+//                 } else {
+//                     const confirmDeleteDepartmentChoice = await inquirer.prompt([
+//                         {
+//                             type: 'confirm',
+//                             name: 'confirmDeleteDepartmentChoice',
+//                             message: `Are you certain you would like to delete ${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} from the database?`,
+//                             default: false,
+//                         },
+//                     ]);
+//                     // Query the database and delete the department 
+//                     if (confirmDeleteDepartmentChoice.confirmDeleteDepartmentChoice) {
+//                         const deleteDepartmentQuery = 'DELETE FROM departments WHERE id = ?';
+//                         await db.query(deleteDepartmentQuery, [deleteDepartmentChoice.deleteDepartmentChoice]);
+//                         console.log(`${departmentChoices.find((choice) => choice.value === deleteDepartmentChoice.deleteDepartmentChoice).name} has been deleted from the database.`);
+//                         confirmDelete = true;
+//                         await start();
+//                     }
+//                 }
+
+//     } catch (error) {
+
+//     }
+// }
+
+   
 
 start();
 
